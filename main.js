@@ -120,7 +120,7 @@ let questions = [
 function getLeftTicketUrl(callback) {
 	request.get("https://kyfw.12306.cn/otn/leftTicket/init", (e, r, b) => {
 		if (e) {
-			callback && callback({ leftTicketUrl: 'leftTicket/query' });
+			callback && callback({ leftTicketUrl: 'leftTicket/queryZ' });
 			console.log(e);
 			return;
 		}
@@ -133,11 +133,11 @@ function getLeftTicketUrl(callback) {
 			leftTicketUrl = re[0].replace(/var CLeftTicketUrl = \'/, '');
 
 			if (!leftTicketUrl) {
-				leftTicketUrl = 'leftTicket/query';
+				leftTicketUrl = 'leftTicket/queryZ';
 			}
 		}
 		else {
-			leftTicketUrl = 'leftTicket/query';
+			leftTicketUrl = 'leftTicket/queryZ';
 		}
 		callback && callback({ leftTicketUrl: leftTicketUrl });
 	});
@@ -186,7 +186,7 @@ var ydz_temp = [], edz_temp = [], yw_temp = [], yz_temp = [], wz_temp = [];//保
 function queryTickets(config) {
 	/*设置请求头参数*/
 	let leftTicketUrl = config.leftTicketUrl;
-	console.log('Begin');
+	console.log(leftTicketUrl);
 	var options = {
 		hostname: 'kyfw.12306.cn',//12306
 		port: 443,
