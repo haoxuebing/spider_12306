@@ -182,7 +182,7 @@ var ydz_temp = [], edz_temp = [], yw_temp = [], yz_temp = [], wz_temp = [];//保
 function queryTickets(config) {
 	/*设置请求头参数*/
 	let leftTicketUrl = config.leftTicketUrl;
-	console.log(leftTicketUrl);
+	console.log(getTime()+'\t'+leftTicketUrl);
 	var options = {
 		hostname: 'kyfw.12306.cn',//12306
 		port: 443,
@@ -222,6 +222,7 @@ function queryTickets(config) {
 			//用来保存返回的json数据
 			var trainMap;
 			try {
+				//这里做下处理
 				var _data = JSON.parse(data).data;
 				trainData = _data && _data.result;
 				trainMap = _data && _data.map;
