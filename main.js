@@ -153,31 +153,27 @@ fs.readFile('config.json', 'utf-8', function (err, data) {
 			config = answer;
 			console.log(config);
 			fs.writeFile('config.json', JSON.stringify(config));
-			var rule = new schedule.RecurrenceRule();
-			rule.second = [0];
-			getLeftTicketUrl((data) => {
-				config.leftTicketUrl = data.leftTicketUrl;
-				queryTickets(config);
-				schedule.scheduleJob(rule, function () {
-					queryTickets(config);
-				});
-			});
+			beginGrabTicket(config);
 		});
 	}
 	else {
 		config = JSON.parse(data);
-		var rule = new schedule.RecurrenceRule();
-		rule.second = [0];
-		getLeftTicketUrl((data) => {
-			config.leftTicketUrl = data.leftTicketUrl;
-			queryTickets(config);
-			schedule.scheduleJob(rule, function () {
-				queryTickets(config);
-			});
-		});
+		beginGrabTicket(config);
 	}
-
 });
+
+//开始抢票
+function beginGrabTicket(config) {
+	var rule = new schedule.RecurrenceRule();//这里是抢票间隔
+	rule.second = [0];
+	getLeftTicketUrl((data) => {
+		config.leftTicketUrl = data.leftTicketUrl;
+		queryTickets(config);
+		schedule.scheduleJob(rule, function () {
+			queryTickets(config);
+		});
+	});
+}
 
 var ydz_temp = [], edz_temp = [], yw_temp = [], yz_temp = [], wz_temp = [];//保存余票状态
 /*
