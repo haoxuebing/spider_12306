@@ -15,23 +15,14 @@ var config = {};
 var prompt = inquirer.createPromptModule();
 let _stations = JSON.parse(fs.readFileSync('station.json', 'utf-8'));
 let isRewrite = hasArgv(process.argv, '-r');
+
 function hasArgv(argv, filter) {
 	argv = argv.slice(2);
 	return argv.some((item, i) => {
 		return filter;
 	});
 }
-function searchTrain(answers, input) {
-	input = input || '';
-	console.log(input);
-	return;
-	if (Object.prototype.toString.call(_stations.stationInfo[input]) === '[object Array]') {
 
-	}
-	else {
-
-	}
-}
 let questions = [
 	{
 		type: 'input',
@@ -117,31 +108,7 @@ let questions = [
 		}
 	}
 ];
-function getLeftTicketUrl(callback) {
-	request.get("https://kyfw.12306.cn/otn/leftTicket/init", (e, r, b) => {
-		if (e) {
-			callback && callback({ leftTicketUrl: 'leftTicket/queryZ' });
-			console.log(e);
-			return;
-		}
-		$ = cheerio.load(r.body, { decodeEntities: false });
-		let pageHtml = $.html();
-		let re = pageHtml.match(/var CLeftTicketUrl = '\w+\/\w+/ig);
-		let leftTicketUrl;
 
-		if (re && re.length) {
-			leftTicketUrl = re[0].replace(/var CLeftTicketUrl = \'/, '');
-
-			if (!leftTicketUrl) {
-				leftTicketUrl = 'leftTicket/queryZ';
-			}
-		}
-		else {
-			leftTicketUrl = 'leftTicket/queryZ';
-		}
-		callback && callback({ leftTicketUrl: leftTicketUrl });
-	});
-}
 fs.readFile('config.json', 'utf-8', function (err, data) {
 	if (err || !data || isRewrite) {
 		prompt(questions).then(answer => {
@@ -175,6 +142,32 @@ function beginGrabTicket(config) {
 	});
 }
 
+function getLeftTicketUrl(callback) {
+	request.get("https://kyfw.12306.cn/otn/leftTicket/init", (e, r, b) => {
+		if (e) {
+			callback && callback({ leftTicketUrl: 'leftTicket/queryZ' });
+			console.log(e);
+			return;
+		}
+		$ = cheerio.load(r.body, { decodeEntities: false });
+		let pageHtml = $.html();
+		let re = pageHtml.match(/var CLeftTicketUrl = '\w+\/\w+/ig);
+		let leftTicketUrl;
+
+		if (re && re.length) {
+			leftTicketUrl = re[0].replace(/var CLeftTicketUrl = \'/, '');
+
+			if (!leftTicketUrl) {
+				leftTicketUrl = 'leftTicket/queryZ';
+			}
+		}
+		else {
+			leftTicketUrl = 'leftTicket/queryZ';
+		}
+		callback && callback({ leftTicketUrl: leftTicketUrl });
+	});
+}
+
 var ydz_temp = [], edz_temp = [], yw_temp = [], yz_temp = [], wz_temp = [];//保存余票状态
 /*
 * 查询余票
@@ -182,7 +175,7 @@ var ydz_temp = [], edz_temp = [], yw_temp = [], yz_temp = [], wz_temp = [];//保
 function queryTickets(config) {
 	/*设置请求头参数*/
 	let leftTicketUrl = config.leftTicketUrl;
-	console.log(getTime()+'\t'+leftTicketUrl);
+	console.log(getTime() + '\t' + leftTicketUrl);
 	var options = {
 		hostname: 'kyfw.12306.cn',//12306
 		port: 443,
@@ -203,16 +196,7 @@ function queryTickets(config) {
 	/*请求开始*/
 	var req = https.get(options, function (res) {
 		var data = '';
-		/*设置邮箱信息*/
-		var transporter = nodemailer.createTransport({
-			host: "smtp.qq.com",
-			secureConnection: true,
-			port: 465,
-			auth: {
-				user: config.your_mail,//邮箱账号
-				pass: config.mail_pass,//邮箱密码
-			}
-		});
+
 		res.on('data', function (buff) {
 			data += buff;//查询结果（JSON格式）
 		});
@@ -223,7 +207,12 @@ function queryTickets(config) {
 			var trainMap;
 			try {
 				//这里做下处理
-				var _data = JSON.parse(data).data;
+				var _data = JSON.parse(data);
+				if(typeof _data !='object'){
+					consoel.log('请求12306出错');
+					return;
+				}
+				_data=_data.data;
 				trainData = _data && _data.result;
 				trainMap = _data && _data.map;
 			} catch (e) {
@@ -258,38 +247,23 @@ function queryTickets(config) {
 
 				var trainNum = cur_train.station_train_code;//车次
 
-				// console.log(trainNum + ' 车次的硬座余票数:', yz, ', 硬卧余票数:', yw, '。当前时间：' + getTime());
-
 				if (judgeState(ydz, edz, yz, yw, wz)) {
 					if (ydz_temp[j] == ydz && edz_temp[j] == edz && yw_temp[j] == yw && yz_temp[j] == yz && wz_temp[j] == wz) {//当余票状态发生改变的时候就不发送邮件
 						console.log(trainNum + '车次状态没改变，不重复发邮件');
-						continue;
+					}else{
+						var ticket_info = `一等座：${ydz},\n二等座：${edz},\n硬卧：${yw},\n硬座：${yz},\n站票：${wz}`;
+						console.log(`${trainNum} ${ticket_info.replace(/\n/g, '')}`);
+						
+						//保存当前列车的余票数量
+						ydz_temp[j] = ydz;
+						edz_temp[j] = edz;
+						yw_temp[j] = yw;
+						yz_temp[j] = yz;
+						wz_temp[j] = wz;
+	
+						// 发邮件部分
+						sendMail(trainNum, cur_train, ticket_info);
 					}
-					var ticket_info = `一等座：${ydz},\n二等座：${edz},\n硬卧：${yw},\n硬座：${yz},\n站票：${wz}`;
-					console.log(`${trainNum} ${ticket_info.replace(/\n/g, '')}`);
-					var mailOptions = {
-						from: config.your_mail, // 发件邮箱地址
-						to: config.receive_mail || config.your_mail, // 收件邮箱地址，可以和发件邮箱一样
-						subject: `${trainNum}有票啦`, // 邮件标题
-						text: trainNum + '有票啦\n' + cur_train.from_station_name + '=======>' + cur_train.to_station_name + '\n出发日期：' + config.time + ',\n出发时间：' + cur_train.start_time + ',\n到达时间：' + cur_train.arrive_time + ',\n历时：' + cur_train.lishi + ',\n' + ticket_info, // 邮件内容
-					};
-
-					// 发邮件部分
-					(function (j, ydz, edz, yw, yz, wz, trainNum) {
-						transporter.sendMail(mailOptions, function (error, info) {
-							if (error) {
-								return console.log(error);
-							}
-							console.log(`${trainNum}有票 & 邮件已发送: =======> ${mailOptions.to}`);
-
-							ydz_temp[j] = ydz;//保存当前列车的余票数量
-							edz_temp[j] = edz;
-							yw_temp[j] = yw;
-							yz_temp[j] = yz;
-							wz_temp[j] = wz;
-
-						});
-					})(j, ydz, edz, yw, yz, wz, trainNum);
 				} else {
 					console.log(trainNum + '暂时无票');
 				}
@@ -300,6 +274,34 @@ function queryTickets(config) {
 
 	req.on('error', function (err) {
 		console.error(err.code);
+	});
+}
+
+function sendMail(trainNum, cur_train, ticket_info) {
+
+	/*设置邮箱信息*/
+	var transporter = nodemailer.createTransport({
+		host: "smtp.qq.com",
+		secureConnection: true,
+		port: 465,
+		auth: {
+			user: config.your_mail,//邮箱账号
+			pass: config.mail_pass,//邮箱密码
+		}
+	});
+
+	var mailOptions = {
+		from: config.your_mail, // 发件邮箱地址
+		to: config.receive_mail || config.your_mail, // 收件邮箱地址，可以和发件邮箱一样
+		subject: `${trainNum}有票啦`, // 邮件标题
+		text: trainNum + '有票啦\n' + cur_train.from_station_name + '=======>' + cur_train.to_station_name + '\n出发日期：' + config.time + ',\n出发时间：' + cur_train.start_time + ',\n到达时间：' + cur_train.arrive_time + ',\n历时：' + cur_train.lishi + ',\n' + ticket_info, // 邮件内容
+	};
+
+	transporter.sendMail(mailOptions, function (error, info) {
+		if (error) {
+			return console.log(error);
+		}
+		console.log(`${trainNum}有票 & 邮件已发送: =======> ${mailOptions.to}`);
 	});
 }
 
