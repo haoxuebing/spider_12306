@@ -207,6 +207,7 @@ function queryTickets(config) {
 			var trainMap;
 			try {
 				//这里做下处理
+				console.log('data:'+data);
 				var _data = JSON.parse(data);
 				if(typeof _data !='object'){
 					consoel.log('请求12306出错');
